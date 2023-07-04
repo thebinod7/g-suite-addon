@@ -3,20 +3,20 @@ function onDefaultHomePageOpen(){
 }
 
 function createFormInputByType(input){
+  var title = input.title;
+  var fieldName = input.id;
   switch(input.type){
     case 'text': {
        var textInput = CardService.newTextInput()
-        .setFieldName("myTextBox")
-        .setTitle("Enter your text")
-        .setHint("Type here");
-
+        .setFieldName(fieldName)
+        .setTitle(title)
         return textInput;
     }
     case 'dropdown': {
            var dropdown = CardService.newSelectionInput()
             .setType(CardService.SelectionInputType.DROPDOWN)
             .setTitle("A group of radio buttons.")
-            .setFieldName("checkbox_field")
+            .setFieldName(fieldName)
             .addItem("Option 1", "option_1", true)
             .addItem("Option 2", "option_2", false)
             .addItem("Option 3", "option_3", false);
@@ -40,54 +40,56 @@ function renderSettingsForm(){
   // Submit field values to Monday board
 }
 var sample_data = [
-  {id:'name', title:"Item Name", type:'text', value:''},
-  {id:'dropdown', title:'Dropdown', type:'dropdown', value:''},
-  {id:'email', title:'Email Address', type:'text', value:''},
+  {id:'name', name:"name", title:"Item Name", type:'text', value:''},
+  {id:'email', name:"email", title:'Email Address', type:'text', value:''},
+  {id:'phone', name:"phone", title:'Phone Number', type:'text', value:''},
+  {id:'dropdown', name:"dropdown", title:'Dropdown', type:'dropdown', value:''},
+  {id:'dropdown1', name:"dropdown1", title:'Dropdown 1', type:'dropdown', value:''},
 ]
-  function createCard(title){
-    return CardService.newCardBuilder()
-        .setHeader(CardService.newCardHeader()
-            .setTitle(title))
-  }
 
   function onGmailMessageOpen(e) {
-     var card = CardService.newCardBuilder();
+      var card = CardService.newCardBuilder();
+      var section = CardService.newCardSection();
   
-     var formAction = CardService.newAction()
+      var formAction = CardService.newAction()
         .setFunctionName('handleFormSubmit');
     
-      var inputField = CardService.newTextInput()
-        .setFieldName('name')
-        .setTitle('Name')
-
-      var emailField = CardService.newTextInput()
-        .setFieldName('email')
-        .setTitle('Email')
+      // var emailField = CardService.newTextInput()
+      //   .setFieldName('email')
+      //   .setTitle('Email')
     
       var submitButton = CardService.newTextButton()
         .setText('Submit')
         .setOnClickAction(formAction);
-    
-      var section = CardService.newCardSection()
-        .addWidget(inputField)
-        .addWidget(emailField)
-        .addWidget(submitButton);
-    
-      card.addSection(section);
-  return card.build();
 
-    // var html = HtmlService.createTemplateFromFile("sidebar").evaluate().getContent();
-    // return CardService.newCardBuilder()
-    // .setHeader(CardService.newCardHeader().setTitle('Contact Details'))
-    // .addSection(CardService.newCardSection().addWidget(CardService.newKeyValue().setContent(html)))
-    // .build();
+      var widgets;
+
+      for(var i=0; i< sample_data.length; i++) {
+        var _input = createFormInputByType(sample_data[i]);
+        widgets = section.addWidget(_input);
+      }
+      widgets.addWidget(submitButton);
+    console.log("W==>",widgets)
+      // var widgets = section
+      //   .addWidget(inputField)
+      //   .addWidget(emailField)
+      //   .addWidget(submitButton);
+    
+      card.addSection(widgets);
+  return card.build();
 }
 
 function handleFormSubmit(e) {
+  console.log("FORM=>", e.formInput);
   var name = e.formInput['name'];
   var email = e.formInput['email'];
+  var phone = e.formInput['phone'];
+  var dropdown = e.formInput['dropdown'];
+  var dropdown1 = e.formInput['dropdown1'];
 
-  console.log(name,email);
+
+  console.log('Phone', phone);
+  console.log(dropdown,dropdown1);
   
   var message = CardService.newTextParagraph()
     .setText('Form submitted successfully!');
