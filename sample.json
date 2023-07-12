@@ -1,0 +1,63 @@
+{
+  "addOns": {
+    "common": {
+      "homepageTrigger": {
+        "runFunction": "onDefaultHomePageOpen",
+        "enabled": true
+      },
+      "layoutProperties": {
+        "primaryColor": "#fbbc04",
+        "secondaryColor": "#d68617"
+      },
+      "logoUrl": "https://app.addoffsite.com/img/logos/128x128.png",
+      "name": "Offsite Demo",
+      "openLinkUrlPrefixes": [
+        "https://mail.google.com/",
+        "https://www.example.com/"
+      ],
+      "universalActions": [
+        {
+          "label": "Open settings",
+          "runFunction": "getSettingsCard"
+        },
+        {
+          "label": "Open Help URL",
+          "openLink": "https://www.example.com/help"
+        }
+      ],
+      "useLocaleFromApp": true
+    },
+    "gmail": {
+      "currentActionManifest": {
+        "addToCacheUrlWhitelist": [
+          "https://auth.monday.com/oauth2/authorize",
+          "https://auth.monday.com/oauth2/authorize/token"
+        ]
+      },
+      "composeTrigger": {
+        "selectActions": [
+          {
+            "text": "Add images to email",
+            "runFunction": "getInsertImageComposeCards"
+          }
+        ],
+        "draftAccess": "METADATA"
+      },
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onGmailMessageOpen"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "OAuth2",
+        "version": "43",
+        "libraryId": "1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF"
+      }
+    ]
+  }
+}
