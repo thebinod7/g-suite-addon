@@ -1,5 +1,16 @@
 function onDefaultHomePageOpen() {
   console.log("Home!!!");
+  return homepageCard();
+}
+
+function homepageCard() {
+  var msg = CardService.newTextParagraph().setText(
+    "Open inbox item before gmail addon."
+  );
+  var updatedCard = CardService.newCardBuilder()
+    .addSection(CardService.newCardSection().addWidget(msg))
+    .build();
+  return updatedCard;
 }
 
 function createFormInputByType(input) {
@@ -78,16 +89,30 @@ var sample_data = [
   },
 ];
 
+function getToken() {
+  var properties = PropertiesService.getUserProperties();
+  var token = properties.getProperty("access_token");
+  return token;
+}
+
 function doGet(e) {
   var params = e.parameter;
   console.log("Params=>", params);
 }
 
+function saveToken(token) {
+  var properties = PropertiesService.getUserProperties();
+  properties.setProperty("access_token", token);
+}
+
 function fetchMondayAccessToken(code) {
+  var service = getOAuthService();
+  var redirect_uri = service.getRedirectUri();
   var data = {
     code: code,
     client_id: MONDAY_CLIENT_ID,
     client_secret: MONDAY_CLIENT_SECRET,
+    redirect_uri: redirect_uri,
   };
   var queryString = Object.keys(data)
     .map(function (key) {
@@ -101,21 +126,20 @@ function fetchMondayAccessToken(code) {
     contentType: "application/x-www-form-urlencoded",
     muteHttpExceptions: true,
   };
-  console.log("Opts=>", options);
-  console.log("FullURL=>", fullURL);
   var response = UrlFetchApp.fetch(fullURL, options);
-  console.log("RES==>", response);
-  return response;
+  if (!response) return null;
+  var json = JSON.parse(response);
+  return json.access_token;
 }
 
 function authCallback(request) {
   var code = request.parameter.code;
-  console.log("CODE=>", code);
-  var token = fetchMondayAccessToken(code);
+  var access_token = fetchMondayAccessToken(code);
+  console.log("Access=>", access_token);
+  if (!access_token)
+    return HtmlService.createHtmlOutput("Fail! Internal server error!.");
+  saveToken(access_token);
   return HtmlService.createHtmlOutput("Success! You can close this tab.");
-  // var mondayService = getOAuthService();
-  // var isAuthorized = mondayService.handleCallback(request);
-  // console.log("Authorized=>", isAuthorized);
 }
 
 function getOAuthService() {
@@ -129,7 +153,74 @@ function getOAuthService() {
     .setPropertyStore(PropertiesService.getUserProperties());
 }
 
+function handleLogoutClick() {
+  var service = getOAuthService();
+  service.reset();
+  saveToken("");
+  return logoutResponseCard();
+}
+
+function saveContactCard() {
+  var msg = CardService.newTextParagraph().setText("Save contact!");
+  var updatedCard = CardService.newCardBuilder()
+    .addSection(CardService.newCardSection().addWidget(msg))
+    .build();
+  return updatedCard;
+}
+
+function updateContactCard(flag) {
+  var msg = CardService.newTextParagraph().setText("Update contact!");
+  var updatedCard = CardService.newCardBuilder()
+    .addSection(CardService.newCardSection().addWidget(msg))
+    .build();
+  return updatedCard;
+}
+
+function handleInstallClick() {}
+
+function authenticationCard() {
+  var btnInstall = CardService.newTextButton()
+    .setText("Install Monday")
+    .setOpenLink(
+      CardService.newOpenLink()
+        .setUrl(
+          "https://auth.monday.com/oauth2/authorize?client_id=7e0dd58133ae009a961817d40ed3384f&response_type=install"
+        )
+        .setOpenAs(CardService.OpenAs.FULL_SIZE)
+    )
+    .setTextButtonStyle(CardService.TextButtonStyle.TEXT);
+
+  var btnAuth = CardService.newTextButton()
+    .setText("Login to Monday")
+    .setOnClickAction(
+      CardService.newAction().setFunctionName("handleLoginClick")
+    );
+
+  var msg = CardService.newTextParagraph().setText(
+    "Install Monday app if you are a first time user."
+  );
+
+  var updatedCard = CardService.newCardBuilder()
+    .addSection(
+      CardService.newCardSection()
+        .addWidget(msg)
+        .addWidget(btnInstall)
+        .addWidget(btnAuth)
+    )
+    .build();
+
+  return updatedCard;
+}
+
 function onGmailMessageOpen(e) {
+  var currentCard = "update";
+  var accessToken = getToken();
+  console.log("accessToken=>", accessToken);
+
+  if (!accessToken) return authenticationCard();
+  if (currentCard === "save") return saveContactCard("save");
+  if (currentCard === "update") return updateContactCard("update");
+
   var card = CardService.newCardBuilder();
   var section = CardService.newCardSection();
 
@@ -139,10 +230,16 @@ function onGmailMessageOpen(e) {
     .setText("Submit")
     .setOnClickAction(formAction);
 
-  var buttonOAuth = CardService.newTextButton()
+  var btnLogout = CardService.newTextButton()
+    .setText("Logout")
+    .setOnClickAction(
+      CardService.newAction().setFunctionName("handleLogoutClick")
+    );
+
+  var btnAuth = CardService.newTextButton()
     .setText("Connect to Monday")
     .setOnClickAction(
-      CardService.newAction().setFunctionName("handleButtonClick")
+      CardService.newAction().setFunctionName("handleLoginClick")
     );
 
   var widgets;
@@ -151,12 +248,13 @@ function onGmailMessageOpen(e) {
     var _input = createFormInputByType(sample_data[i]);
     widgets = section.addWidget(_input);
   }
-  widgets.addWidget(submitButton).addWidget(buttonOAuth);
+  if (accessToken) widgets.addWidget(submitButton).addWidget(btnLogout);
+  else widgets.addWidget(submitButton).addWidget(btnAuth);
   card.addSection(widgets);
   return card.build();
 }
 
-function handleButtonClick(e) {
+function handleLoginClick(e) {
   return createAuthorizationCard();
 }
 
@@ -164,7 +262,6 @@ function createAuthorizationCard() {
   var service = getOAuthService();
   var authorizationUrl = service.getAuthorizationUrl();
   var redirect_uri = service.getRedirectUri();
-  console.log("Redirect=>>", redirect_uri);
 
   var card = CardService.newCardBuilder();
   var authorizationAction =
@@ -186,6 +283,16 @@ function handleFormSubmit(e) {
 
   var updatedCard = CardService.newCardBuilder()
     .addSection(CardService.newCardSection().addWidget(message))
+    .build();
+
+  return updatedCard;
+}
+
+function logoutResponseCard() {
+  var msg = CardService.newTextParagraph().setText("Logged out successfully!");
+
+  var updatedCard = CardService.newCardBuilder()
+    .addSection(CardService.newCardSection().addWidget(msg))
     .build();
 
   return updatedCard;
