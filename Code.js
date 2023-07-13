@@ -53,9 +53,12 @@ function renderSettingsForm() {
 }
 
 var MONDAY_AUTH_URL = "https://auth.monday.com/oauth2/authorize";
-var MONDAY_CLIENT_ID = "7e0dd58133ae009a961817d40ed3384f";
-var MONDAY_CLIENT_SECRET = "0aae00da873e1e8862484b468e379a75";
+var MONDAY_CLIENT_ID = "";
+var MONDAY_CLIENT_SECRET = "";
 var MONDAT_ACCESS_TOKEN_URL = "https://auth.monday.com/oauth2/token";
+var MONDAY_API_ENDPOINT = "https://api.monday.com/v2";
+var OFFSITE_API_ENDPOINT = "https://app.addoffsite.com";
+var OFFSITE_API_SECRET = "";
 
 var sample_data = [
   { id: "name", name: "name", title: "Item Name", type: "text", value: "" },
@@ -168,15 +171,13 @@ function saveContactCard() {
   return updatedCard;
 }
 
-function updateContactCard(flag) {
+function updateContactCard() {
   var msg = CardService.newTextParagraph().setText("Update contact!");
   var updatedCard = CardService.newCardBuilder()
     .addSection(CardService.newCardSection().addWidget(msg))
     .build();
   return updatedCard;
 }
-
-function handleInstallClick() {}
 
 function authenticationCard() {
   var btnInstall = CardService.newTextButton()
@@ -208,16 +209,70 @@ function authenticationCard() {
         .addWidget(btnAuth)
     )
     .build();
+  return updatedCard;
+}
+
+function fetchGmailSettings(accountId) {
+  var headers = {
+    apisecret: OFFSITE_API_SECRET,
+    "Content-Type": "application/json",
+  };
+  var options = {
+    method: "get",
+    contentType: "application/json",
+    muteHttpExceptions: true,
+    headers: headers,
+  };
+  var backendUrl =
+    OFFSITE_API_ENDPOINT +
+    "/api/v1/crm-settings/" +
+    accountId +
+    "/account/Gmail Contact";
+  console.log("Backend=>", backendUrl);
+  var res = UrlFetchApp.fetch(backendUrl, options);
+  return JSON.parse(res);
+}
+
+function fetchMondayAccountDetails(accessToken) {
+  var query = "query { me {name id  account{id name slug}}}";
+  var headers = {
+    Authorization: accessToken,
+    "Content-Type": "application/json",
+  };
+  var options = {
+    method: "post",
+    contentType: "application/json",
+    muteHttpExceptions: true,
+    headers: headers,
+    payload: JSON.stringify({ query: query }),
+  };
+  var res = UrlFetchApp.fetch(MONDAY_API_ENDPOINT, options);
+  return JSON.parse(res);
+}
+
+function showBlankSettingsCard() {
+  var msg = CardService.newTextParagraph().setText(
+    "No settings found, Please save your settings first!"
+  );
+  var updatedCard = CardService.newCardBuilder()
+    .addSection(CardService.newCardSection().addWidget(msg))
+    .build();
 
   return updatedCard;
 }
 
 function onGmailMessageOpen(e) {
-  var currentCard = "update";
+  var currentCard = "save";
   var accessToken = getToken();
-  console.log("accessToken=>", accessToken);
 
   if (!accessToken) return authenticationCard();
+
+  var account = fetchMondayAccountDetails(accessToken);
+  var accountId = account.account_id.toString();
+  var settings = fetchGmailSettings(accountId);
+  if (!settings || !settings.data) return showBlankSettingsCard();
+  console.log("Settings=>", settings.data);
+
   if (currentCard === "save") return saveContactCard("save");
   if (currentCard === "update") return updateContactCard("update");
 
