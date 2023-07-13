@@ -1,4 +1,13 @@
 {
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "OAuth2",
+        "libraryId": "1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF",
+        "version": "43"
+      }
+    ]
+  },
   "addOns": {
     "common": {
       "homepageTrigger": {
@@ -10,10 +19,11 @@
         "secondaryColor": "#d68617"
       },
       "logoUrl": "https://app.addoffsite.com/img/logos/128x128.png",
-      "name": "Offsite Demo",
+      "name": "Offsite Addon",
       "openLinkUrlPrefixes": [
         "https://mail.google.com/",
-        "https://www.example.com/"
+        "https://www.example.com/",
+        "https://auth.monday.com/oauth2/authorize"
       ],
       "universalActions": [
         {
@@ -44,5 +54,9 @@
         }
       ]
     }
+  },
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "ANYONE"
   }
 }
