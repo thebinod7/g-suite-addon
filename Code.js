@@ -53,12 +53,12 @@ function renderSettingsForm() {
 }
 
 var MONDAY_AUTH_URL = "https://auth.monday.com/oauth2/authorize";
-var MONDAY_CLIENT_ID = "";
-var MONDAY_CLIENT_SECRET = "";
+var MONDAY_CLIENT_ID = "7e0dd58133ae009a961817d40ed3384f";
+var MONDAY_CLIENT_SECRET = "0aae00da873e1e8862484b468e379a75";
 var MONDAT_ACCESS_TOKEN_URL = "https://auth.monday.com/oauth2/token";
 var MONDAY_API_ENDPOINT = "https://api.monday.com/v2";
 var OFFSITE_API_ENDPOINT = "https://app.addoffsite.com";
-var OFFSITE_API_SECRET = "";
+var OFFSITE_API_SECRET = "z0QGd8JF7DIWkhBmR9CWEzDVFtsEHbX8";
 
 var sample_data = [
   { id: "name", name: "name", title: "Item Name", type: "text", value: "" },
@@ -250,6 +250,26 @@ function fetchMondayAccountDetails(accessToken) {
   return JSON.parse(res);
 }
 
+function fetchBoardColumnValues(accessToken, boardIds) {
+  var query =
+    "query { boards(ids:" +
+    boardIds +
+    ") { items() {id name column_values {id title type value text} }} }";
+  var headers = {
+    Authorization: accessToken,
+    "Content-Type": "application/json",
+  };
+  var options = {
+    method: "post",
+    contentType: "application/json",
+    muteHttpExceptions: true,
+    headers: headers,
+    payload: JSON.stringify({ query: query }),
+  };
+  var res = UrlFetchApp.fetch(MONDAY_API_ENDPOINT, options);
+  return JSON.parse(res);
+}
+
 function showBlankSettingsCard() {
   var msg = CardService.newTextParagraph().setText(
     "No settings found, Please save your settings first!"
@@ -259,6 +279,62 @@ function showBlankSettingsCard() {
     .build();
 
   return updatedCard;
+}
+
+function extractEmailAddress(text) {
+  var regex = /[\w\.-]+@[\w\.-]+\.\w+/g;
+  var matches = text.match(regex);
+  return matches ? matches[0] : null;
+}
+
+function fetchGmailSender(e) {
+  var email;
+  var messageId = e.messageMetadata.messageId;
+  //  var message = GmailApp.getMessageById(messageId);
+  var thread = GmailApp.getMessageById(messageId).getThread();
+  var messages = thread.getMessages();
+  for (var i = 0; i < messages.length; i++) {
+    var sender = messages[i].getFrom();
+    var emailAddr = extractEmailAddress(sender);
+    email = emailAddr;
+    var body = messages[i].getBody();
+    console.log("Text==>", body);
+  }
+  return email;
+}
+
+function findEmailInBoardRow(row, email) {
+  var columns = row.column_values;
+  var emailColumns = columns.filter(function (f) {
+    return f.type === "email";
+  });
+  if (emailColumns.length < 1) return null;
+
+  var found;
+  for (var i = 0; i < emailColumns.length; i++) {
+    if (emailColumns[i].text == email) {
+      found = emailColumns[i];
+      break;
+    }
+  }
+  return found;
+}
+
+function getBoardItemByEmail(email) {
+  var headers = {
+    apisecret: OFFSITE_API_SECRET,
+    "Content-Type": "application/json",
+  };
+  var options = {
+    method: "get",
+    contentType: "application/json",
+    muteHttpExceptions: true,
+    headers: headers,
+  };
+  var backendUrl = OFFSITE_API_ENDPOINT + "/api/v1/board-items/email/" + email;
+  console.log("URL=>", backendUrl);
+  var res = UrlFetchApp.fetch(backendUrl, options);
+  return JSON.parse(res);
 }
 
 function onGmailMessageOpen(e) {
@@ -271,7 +347,21 @@ function onGmailMessageOpen(e) {
   var accountId = account.account_id.toString();
   var settings = fetchGmailSettings(accountId);
   if (!settings || !settings.data) return showBlankSettingsCard();
-  console.log("Settings=>", settings.data);
+  var allowedFields = settings.data.allowedFields;
+  var senderEmail = fetchGmailSender(e);
+  // Search in database
+  var dbResponse = getBoardItemByEmail(senderEmail);
+  console.log("DBRES=>", dbResponse);
+  var boardIds = [settings.data.board.value];
+  var boardResponse = fetchBoardColumnValues(accessToken, boardIds);
+  var rows = boardResponse.data.boards[0].items;
+  for (var i = 0; i < rows.length; i++) {
+    var found = findEmailInBoardRow(rows[i], senderEmail);
+    if (found) {
+      return updateContactCard("save");
+      // append values/sanitize forms and render;
+    }
+  }
 
   if (currentCard === "save") return saveContactCard("save");
   if (currentCard === "update") return updateContactCard("update");
